@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Akıllı Todo - Ayarlar</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #0f172a;
+        color: #f1f5f9;
+        padding: 24px;
+        max-width: 480px;
+      }
+      label {
+        display: block;
+        margin-top: 12px;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 4px;
+        background: #020617;
+        color: #f1f5f9;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 8px;
+      }
+      button {
+        margin-top: 16px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      p.hint {
+        font-size: 12px;
+        color: #64748b;
+      }
+      #status {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #34d399;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Akıllı Todo Eklenti Ayarları</h2>
+    <p class="hint">
+      Web uygulamasında oturum açıp <strong>Ayarlar &gt; Chrome Eklentisi</strong>
+      bölümünden bir anahtar üretin ve aşağıya yapıştırın.
+    </p>
+    <label for="apiBaseUrl">Uygulama adresi (API base URL)</label>
+    <input id="apiBaseUrl" type="url" placeholder="https://akilli-todo.example.com" />
+    <label for="extensionToken">Eklenti anahtarı</label>
+    <input id="extensionToken" type="password" placeholder="ext_..." />
+    <button id="saveButton">Kaydet</button>
+    <p id="status"></p>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
