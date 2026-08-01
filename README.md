@@ -1,25 +1,23 @@
 # Akıllı Todo & Takvim Planlayıcı
 
-Eisenhower matrisi + LLM destekli görev sınıflandırma + Outlook
-takvimine göre deterministik zaman önerisi yapan bir kişisel
-üretkenlik uygulaması. Mimari ve faz faz uygulama planı için
-`docs/` klasörüne ve proje köküne eklenen plan dokümanına bakın.
+Eisenhower matrisi + LLM destekli görev sınıflandırma + deterministik zaman
+önerisi yapan kişisel üretkenlik uygulaması. Giriş: **Google OAuth**
+(yalnızca `@gmail.com`). Microsoft/Outlook entegrasyonu devre dışıdır.
 
 ## Mimari özeti
 
 ```
 Next.js (Web + Chrome Eklentisi) → Next.js Route Handlers (BFF)
-  → Supabase (Postgres + RLS + Auth + Vault)
-  → Microsoft Graph (getSchedule, free/busy)
-  → Gemini API (görev analizi, LLM Adapter arkasında)
-  → Deterministik Scheduling Engine (slot önerisi, LLM'den bağımsız)
+  → Supabase (Postgres + RLS + Auth)
+  → Gemini API (görev analizi)
+  → Deterministik Scheduling Engine (uygulama içi plan)
 ```
 
 ## Gereksinimler
 
 - Node.js 22+
-- Bir Supabase projesi (bkz. `supabase/migrations/`)
-- Microsoft Entra App Registration (bkz. `docs/entra-app-registration.md`)
+- Supabase projesi (bkz. `supabase/migrations/`)
+- Google Cloud OAuth client (bkz. `docs/google-auth-setup.md`)
 - Gemini API anahtarı (paid tier)
 
 ## Kurulum
@@ -46,7 +44,8 @@ npm run dev
 
 ## Dokümantasyon
 
-- [`docs/entra-app-registration.md`](docs/entra-app-registration.md) — Microsoft Entra App Registration adım adım kurulum.
+- [`docs/google-auth-setup.md`](docs/google-auth-setup.md) — Gmail giriş (Google OAuth + Supabase).
+- [`docs/azure-cleanup.md`](docs/azure-cleanup.md) — Eski Microsoft/Azure kaynaklarını silme.
 - [`docs/security-checklist.md`](docs/security-checklist.md) — Güvenlik/gizlilik kontrol listesi (FAZ 7).
 - [`docs/deployment-runbook.md`](docs/deployment-runbook.md) — Production'a alma ve rollback prosedürü.
 - [`extension/README.md`](extension/README.md) — Chrome eklentisi kurulumu ve Web Store yayın adımları.

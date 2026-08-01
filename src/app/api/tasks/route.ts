@@ -7,6 +7,14 @@ const createTaskSchema = z.object({
   rawText: z.string().min(1).max(2000),
   idempotencyKey: z.string().min(1).max(100).optional(),
   source: z.enum(["web", "chrome_extension"]).default("web"),
+  quadrant: z
+    .enum([
+      "urgent_important",
+      "not_urgent_important",
+      "urgent_not_important",
+      "not_urgent_not_important",
+    ])
+    .optional(),
 });
 
 // FR-01 + FR-02: Gorev, AI cagrisindan ONCE Inbox durumunda kaydedilir; AI
@@ -28,7 +36,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { rawText, idempotencyKey, source } = parsed.data;
+  const { rawText, idempotencyKey, source, quadrant } = parsed.data;
 
   if (idempotencyKey) {
     const { data: existing } = await auth.supabase
@@ -51,6 +59,7 @@ export async function POST(request: NextRequest) {
       status: "inbox",
       source,
       idempotency_key: idempotencyKey ?? null,
+      quadrant: quadrant ?? null,
     })
     .select("*")
     .single();

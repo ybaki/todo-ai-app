@@ -24,26 +24,12 @@ export const env = {
       return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
     },
   },
-  microsoft: {
-    get clientId() {
-      return requireEnv("MICROSOFT_CLIENT_ID");
-    },
-    get clientSecret() {
-      return requireEnv("MICROSOFT_CLIENT_SECRET");
-    },
-    get tenantId() {
-      return process.env.MICROSOFT_TENANT_ID ?? "organizations";
-    },
-    get redirectUri() {
-      return requireEnv("MICROSOFT_REDIRECT_URI");
-    },
-  },
   gemini: {
     get apiKey() {
       return requireEnv("GEMINI_API_KEY");
     },
     get model() {
-      return process.env.GEMINI_MODEL ?? "gemini-flash-lite-latest";
+      return process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
     },
   },
   extension: {

@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+function normalizeDeadline(value: unknown): unknown {
+  if (value === "" || value === undefined) return null;
+  if (typeof value !== "string") return value;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(value)) {
+    return value.replace("Z", "+00:00");
+  }
+  return value;
+}
+
 /**
  * LLM'den beklenen structured output semasi.
  * Bkz. docs/Akilli_Todo_Takvim_Proje_Dokumani.docx bolum 9.1.
@@ -13,7 +22,10 @@ export const taskAnalysisSchema = z.object({
     "not_urgent_not_important",
   ]),
   estimatedMinutes: z.number().int().min(5).max(8 * 60),
-  deadline: z.string().datetime({ offset: true }).nullable(),
+  deadline: z.preprocess(
+    normalizeDeadline,
+    z.string().datetime({ offset: true }).nullable()
+  ),
   splittable: z.boolean(),
   minimumChunkMinutes: z.number().int().min(5).max(8 * 60).nullable(),
   energy: z.enum(["low", "medium", "high_focus"]),

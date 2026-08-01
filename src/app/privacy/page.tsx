@@ -9,6 +9,14 @@ export default function PrivacyPage() {
 
       <div className="mt-6 space-y-6 text-sm leading-relaxed text-slate-300">
         <section>
+          <h2 className="font-semibold text-slate-100">Kimlik doğrulama</h2>
+          <p>
+            Giriş yalnızca Google OAuth ile yapılır. Yalnızca{" "}
+            <strong>@gmail.com</strong> e-posta adresleri kabul edilir. Microsoft / Outlook
+            entegrasyonu bu sürümde kullanılmaz.
+          </p>
+        </section>
+        <section>
           <h2 className="font-semibold text-slate-100">Ne saklıyoruz?</h2>
           <p>
             Yazdığınız görev metinleri, AI tarafından üretilen sınıflandırma/süre önerileri,
@@ -18,27 +26,10 @@ export default function PrivacyPage() {
           </p>
         </section>
         <section>
-          <h2 className="font-semibold text-slate-100">Ne saklamıyoruz?</h2>
-          <p>
-            Outlook takviminizden yalnızca meşgul/uygun (free/busy) zaman aralıkları
-            okunur; toplantı başlığı, açıklaması, katılımcı listesi veya konum bilgisi
-            HİÇBİR ZAMAN okunmaz, saklanmaz veya AI servisine gönderilmez.
-          </p>
-        </section>
-        <section>
           <h2 className="font-semibold text-slate-100">AI servisi (Gemini)</h2>
           <p>
             Görev metniniz, sınıflandırma ve süre tahmini için Google Gemini API&apos;ye
-            gönderilir. Takvim/toplantı bilgisi bu isteğe asla dahil edilmez.
-          </p>
-        </section>
-        <section>
-          <h2 className="font-semibold text-slate-100">Microsoft/Outlook bağlantısı</h2>
-          <p>
-            Outlook erişim/yenileme anahtarınız (refresh token) Supabase Vault&apos;ta
-            uçtan uca şifreli olarak saklanır; hiçbir zaman düz metin olarak
-            veritabanında veya loglarda tutulmaz. Bağlantıyı Ayarlar sayfasından
-            istediğiniz zaman kesebilirsiniz.
+            gönderilir. Harici takvim/toplantı bilgisi bu isteğe dahil edilmez.
           </p>
         </section>
         <section>
@@ -52,8 +43,7 @@ export default function PrivacyPage() {
           <h2 className="font-semibold text-slate-100">Verilerinizi silme</h2>
           <p>
             Ayarlar sayfasındaki &quot;Hesabımı ve verilerimi sil&quot; butonuyla tüm
-            verileriniz (görevler, planlar, AI analiz geçmişi, Outlook bağlantısı)
-            kalıcı olarak ve geri alınamaz şekilde silinir.
+            verileriniz kalıcı olarak ve geri alınamaz şekilde silinir.
           </p>
         </section>
       </div>

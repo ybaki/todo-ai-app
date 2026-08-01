@@ -51,7 +51,7 @@ export default function SettingsPage() {
 
   async function handleDeleteAccount() {
     const confirmed = window.confirm(
-      "Hesabınız ve TÜM verileriniz (görevler, planlar, Outlook bağlantısı) kalıcı olarak silinecek. Emin misiniz?"
+      "Hesabınız ve TÜM verileriniz (görevler, planlar) kalıcı olarak silinecek. Emin misiniz?"
     );
     if (!confirmed) return;
     setIsDeleting(true);
@@ -144,18 +144,6 @@ export default function SettingsPage() {
 
       <section className="space-y-3 border-t border-slate-800 pt-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Outlook Bağlantısı
-        </h2>
-        <a
-          href="/api/calendar/connect"
-          className="inline-block rounded border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:border-blue-500"
-        >
-          Outlook&apos;u bağla / yenile
-        </a>
-      </section>
-
-      <section className="space-y-3 border-t border-slate-800 pt-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           Chrome Eklentisi
         </h2>
         <p className="text-sm text-slate-400">
@@ -181,8 +169,8 @@ export default function SettingsPage() {
           Tehlikeli Bölge
         </h2>
         <p className="text-sm text-slate-400">
-          Hesabınızı ve tüm verilerinizi (görevler, planlar, Outlook bağlantısı, AI analiz
-          geçmişi) kalıcı olarak siler. Bu işlem geri alınamaz.
+          Hesabınızı ve tüm verilerinizi (görevler, planlar, AI analiz geçmişi) kalıcı olarak
+          siler. Bu işlem geri alınamaz.
         </p>
         <button
           onClick={handleDeleteAccount}

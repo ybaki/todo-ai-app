@@ -7,7 +7,7 @@ import { QUADRANT_LABELS } from "@/lib/quadrant";
 interface SuggestionBubbleProps {
   task: TaskRow;
   onClose: () => void;
-  onScheduled: () => void;
+  onScheduled?: () => void;
 }
 
 function formatRange(startIso: string, endIso: string) {
@@ -58,7 +58,7 @@ export function SuggestionBubble({ task, onClose, onScheduled }: SuggestionBubbl
       body: JSON.stringify({ suggestionId: active.id }),
     });
     if (response.ok) {
-      onScheduled();
+      onScheduled?.();
       onClose();
     }
   }

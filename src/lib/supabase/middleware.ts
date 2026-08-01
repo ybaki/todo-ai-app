@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isAllowedGmailAddress } from "@/lib/auth/gmailOnly";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/privacy"];
 
@@ -7,10 +8,6 @@ function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 }
 
-/**
- * Supabase Auth oturum cerezini her istekte tazeler ve korumali sayfalara
- * girisi engeller. Next.js middleware.ts icinde cagrilir.
- */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -39,11 +36,16 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // API route'lari kendi 401/403 JSON yanitlarini uretir (bkz. resolveRequestUser);
-  // middleware onlari sayfa gibi /login'e yonlendirmemeli, aksi halde Chrome
-  // eklentisi gibi cookie'siz Bearer-token istemcileri kirilir.
   if (pathname.startsWith("/api/")) {
     return supabaseResponse;
+  }
+
+  if (user && !isAllowedGmailAddress(user.email)) {
+    await supabase.auth.signOut();
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("error", "gmail_only");
+    return NextResponse.redirect(loginUrl);
   }
 
   if (!user && !isPublicPath(pathname) && pathname !== "/") {

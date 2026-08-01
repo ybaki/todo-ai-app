@@ -42,11 +42,11 @@ export function useTasks() {
     void refresh();
   }, [refresh]);
 
-  const createTask = useCallback(async (rawText: string) => {
+  const createTask = useCallback(async (rawText: string, quadrant?: TaskRow["quadrant"]) => {
     const response = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rawText, source: "web" }),
+      body: JSON.stringify({ rawText, source: "web", quadrant }),
     });
     if (!response.ok) throw new Error("Gorev kaydedilemedi");
     const data = (await response.json()) as { task: TaskRow };

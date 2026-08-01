@@ -13,9 +13,9 @@ test.describe("Kimlik dogrulama guard'lari", () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test("login sayfasi Microsoft ile giris butonunu gosterir", async ({ page }) => {
+  test("login sayfasi Google ile giris butonunu gosterir", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.getByRole("button", { name: /Microsoft ile giriş yap/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Google ile giriş yap/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Gizlilik politikası/i })).toBeVisible();
   });
 

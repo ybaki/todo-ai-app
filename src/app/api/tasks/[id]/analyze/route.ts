@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveRequestUser } from "@/lib/auth/resolveRequestUser";
 import { analyzeTaskWithRetry } from "@/lib/llm/analyzeTask";
+import { classifyQuadrantHeuristic } from "@/lib/llm/heuristicClassifier";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 interface RouteParams {
@@ -69,6 +70,36 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   if (!final.outcome.ok) {
+    const heuristicQuadrant = classifyQuadrantHeuristic(task.raw_text);
+
+    if (heuristicQuadrant) {
+      const { data: updatedTask, error: heuristicError } = await auth.supabase
+        .from("tasks")
+        .update({
+          title: task.raw_text.trim().slice(0, 200),
+          quadrant: heuristicQuadrant,
+          status: "suggested",
+          confidence: 0.35,
+        })
+        .eq("id", id)
+        .select("*")
+        .single();
+
+      if (heuristicError) {
+        return NextResponse.json(
+          { error: "update_failed", message: heuristicError.message },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        task: updatedTask,
+        analysis: null,
+        fallback: "heuristic",
+        error: final.outcome.error,
+      });
+    }
+
     const { data: updatedTask } = await auth.supabase
       .from("tasks")
       .update({ status: "needs_user_input" })

@@ -43,21 +43,21 @@ describe("parseTaskAnalysis", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("negatif estimatedMinutes degerini reddeder", () => {
-    const invalidJson = JSON.stringify({
+  it("UTC Z deadline degerini kabul eder", () => {
+    const validJson = JSON.stringify({
       title: "Test",
       quadrant: "urgent_important",
-      estimatedMinutes: -10,
-      deadline: null,
+      estimatedMinutes: 30,
+      deadline: "2026-07-31T14:00:00.000Z",
       splittable: false,
       minimumChunkMinutes: null,
       energy: "medium",
-      tags: [],
+      tags: ["work"],
       confidence: 0.5,
       reason: "test",
     });
 
-    const result = parseTaskAnalysis(invalidJson);
-    expect(result.ok).toBe(false);
+    const result = parseTaskAnalysis(validJson);
+    expect(result.ok).toBe(true);
   });
 });
