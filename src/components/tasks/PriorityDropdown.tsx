@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { EisenhowerQuadrant } from "@/types/database";
-import { QUADRANT_LABELS, QUADRANT_ORDER } from "@/lib/quadrant";
+import { QUADRANT_LABELS, QUADRANT_HINTS, QUADRANT_ORDER } from "@/lib/quadrant";
 
 interface PriorityDropdownProps {
   value: EisenhowerQuadrant | null;
@@ -76,7 +76,7 @@ export function PriorityDropdown({
       {open ? (
         <ul
           role="listbox"
-          className={`absolute z-40 mt-1 min-w-[200px] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-xl ${
+          className={`absolute z-40 mt-1 min-w-[min(100vw-2rem,380px)] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-xl ${
             variant === "icon" ? "right-0" : "left-0"
           }`}
         >
@@ -88,11 +88,20 @@ export function PriorityDropdown({
                   onChange(quadrant);
                   setOpen(false);
                 }}
-                className={`block w-full px-4 py-2.5 text-left text-sm transition hover:bg-slate-800 ${
-                  value === quadrant ? "bg-slate-800/80 text-blue-300" : "text-slate-200"
+                className={`block w-full px-4 py-2.5 text-left transition hover:bg-slate-800 ${
+                  value === quadrant ? "bg-slate-800/80" : ""
                 }`}
               >
-                {QUADRANT_LABELS[quadrant]}
+                <span
+                  className={`block text-sm ${
+                    value === quadrant ? "text-blue-300" : "text-slate-200"
+                  }`}
+                >
+                  {QUADRANT_LABELS[quadrant]}
+                </span>
+                <span className="mt-0.5 block text-xs leading-snug text-slate-500">
+                  {QUADRANT_HINTS[quadrant]}
+                </span>
               </button>
             </li>
           ))}

@@ -1,6 +1,14 @@
 import { fromZonedTime } from "date-fns-tz";
 import { addDays, format, max as dateMax, min as dateMin } from "date-fns";
+import { isDayInSet } from "@/lib/scheduling/userPreferences";
 import type { ExistingCommitment, TimeRange, WorkingHoursPreferences } from "./types";
+
+function resolveDayEnd(dateStr: string, endTime: string, timezone: string): Date {
+  if (endTime === "24:00") {
+    return addDays(fromZonedTime(`${dateStr}T00:00:00`, timezone), 1);
+  }
+  return fromZonedTime(`${dateStr}T${endTime}:00`, timezone);
+}
 
 function mergeRanges(ranges: TimeRange[]): TimeRange[] {
   if (ranges.length === 0) return [];
@@ -29,7 +37,6 @@ function subtractRanges(base: TimeRange, blockers: TimeRange[]): TimeRange[] {
       const overlapEnd = dateMin([interval.end, blocker.end]);
 
       if (overlapStart >= overlapEnd) {
-        // Cakisma yok, interval oldugu gibi kalir.
         next.push(interval);
         continue;
       }
@@ -56,9 +63,8 @@ function applyBuffer(range: TimeRange, bufferMinutes: number): TimeRange {
 }
 
 /**
- * Calisma saatleri, ogle arasi, toplanti tamponlari ve mevcut
- * meskuliyetleri (busy + zaten planlanmis) dikkate alarak, verilen arama
- * penceresi icindeki bos araliklari uretir. Bkz. dokuman bolum 10.2 adim 1-2.
+ * Aktif saat penceresinde bos araliklar uretir (Aktif > Calisma).
+ * Gorev bazli daraltma slotRules'ta yapilir.
  */
 export function computeFreeIntervals(params: {
   commitments: ExistingCommitment[];
@@ -67,7 +73,7 @@ export function computeFreeIntervals(params: {
   now: Date;
 }): TimeRange[] {
   const { commitments, preferences, searchWindow, now } = params;
-  const { timezone, workStart, workEnd, lunchStart, lunchEnd, bufferMinutes } = preferences;
+  const { timezone, activeStart, activeEnd, lunchStart, lunchEnd, bufferMinutes } = preferences;
 
   const bufferedCommitments = commitments.map((commitment) =>
     applyBuffer(commitment, bufferMinutes)
@@ -78,14 +84,19 @@ export function computeFreeIntervals(params: {
 
   while (cursor < searchWindow.end) {
     const dateStr = format(cursor, "yyyy-MM-dd");
-    const dayWorkStart = fromZonedTime(`${dateStr}T${workStart}:00`, timezone);
-    const dayWorkEnd = fromZonedTime(`${dateStr}T${workEnd}:00`, timezone);
+    if (!isDayInSet(cursor, preferences.activeDays, timezone)) {
+      cursor = addDays(cursor, 1);
+      continue;
+    }
+
+    const dayActiveStart = fromZonedTime(`${dateStr}T${activeStart}:00`, timezone);
+    const dayActiveEnd = resolveDayEnd(dateStr, activeEnd, timezone);
 
     const dayBlockers: TimeRange[] = bufferedCommitments.filter(
-      (commitment) => commitment.start < dayWorkEnd && commitment.end > dayWorkStart
+      (commitment) => commitment.start < dayActiveEnd && commitment.end > dayActiveStart
     );
 
-    if (lunchStart && lunchEnd) {
+    if (lunchStart && lunchEnd && isDayInSet(cursor, preferences.workDays, timezone)) {
       dayBlockers.push({
         start: fromZonedTime(`${dateStr}T${lunchStart}:00`, timezone),
         end: fromZonedTime(`${dateStr}T${lunchEnd}:00`, timezone),
@@ -93,7 +104,7 @@ export function computeFreeIntervals(params: {
     }
 
     const merged = mergeRanges(dayBlockers);
-    const dayFree = subtractRanges({ start: dayWorkStart, end: dayWorkEnd }, merged);
+    const dayFree = subtractRanges({ start: dayActiveStart, end: dayActiveEnd }, merged);
 
     for (const interval of dayFree) {
       const clippedStart = dateMax([interval.start, searchWindow.start, now]);

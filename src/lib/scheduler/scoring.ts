@@ -1,4 +1,9 @@
 import { differenceInMinutes, getHours } from "date-fns";
+import {
+  getEffectiveQuadrant,
+  isImminentDeadline,
+  isUrgentDeadline,
+} from "./deadlineUrgency";
 import type { ExistingCommitment, SchedulableTask, TimeRange, WorkingHoursPreferences } from "./types";
 
 /**
@@ -22,8 +27,9 @@ const WEIGHTS = {
 const QUADRANT_PRIORITY: Record<string, number> = {
   urgent_important: 1,
   not_urgent_important: 0.75,
-  urgent_not_important: 0.5,
-  not_urgent_not_important: 0.25,
+  get_rid: 0.4,
+  urgent_not_important: 0.4,
+  not_urgent_not_important: 0.4,
 };
 
 function clamp01(value: number) {
@@ -34,8 +40,25 @@ function scoreDeadlineUrgency(candidateStart: Date, now: Date, deadline: Date | 
   if (!deadline) return 0.5;
   const totalWindow = deadline.getTime() - now.getTime();
   if (totalWindow <= 0) return 1;
+  if (isImminentDeadline(deadline, now)) return 1;
   const remaining = deadline.getTime() - candidateStart.getTime();
   return clamp01(1 - remaining / totalWindow);
+}
+
+function scorePostBlockPlacement(
+  candidateStart: Date,
+  commitments: ExistingCommitment[],
+  urgent: boolean
+): number {
+  if (!urgent) return 0;
+  const toleranceMs = 20 * 60_000;
+  for (const commitment of commitments) {
+    const gap = candidateStart.getTime() - commitment.end.getTime();
+    if (gap >= 0 && gap <= toleranceMs) {
+      return 0.25;
+    }
+  }
+  return 0;
 }
 
 function scoreEisenhowerPriority(quadrant: string | null) {
@@ -110,8 +133,9 @@ export function scoreCandidate(params: {
     params;
   const candidateDurationMinutes = differenceInMinutes(candidate.end, candidate.start);
 
+  const effectiveQuadrant = getEffectiveQuadrant(task.quadrant, task.deadline, now);
   const deadlineUrgency = scoreDeadlineUrgency(candidate.start, now, task.deadline);
-  const eisenhowerPriority = scoreEisenhowerPriority(task.quadrant);
+  const eisenhowerPriority = scoreEisenhowerPriority(effectiveQuadrant);
   const uninterruptedFit = scoreUninterruptedFit(
     candidateDurationMinutes,
     intervalDurationMinutes,
@@ -129,13 +153,19 @@ export function scoreCandidate(params: {
     commitments,
     preferences.bufferMinutes
   );
+  const postBlockBonus = scorePostBlockPlacement(
+    candidate.start,
+    commitments,
+    isUrgentDeadline(task.deadline, now)
+  );
 
   const score =
     deadlineUrgency * WEIGHTS.deadlineUrgency +
     eisenhowerPriority * WEIGHTS.eisenhowerPriority +
     uninterruptedFit * WEIGHTS.uninterruptedFit +
     preferredFocusTime * WEIGHTS.preferredFocusTime +
-    dailyLoadBalance * WEIGHTS.dailyLoadBalance -
+    dailyLoadBalance * WEIGHTS.dailyLoadBalance +
+    postBlockBonus -
     splitPenalty -
     meetingAdjacencyPenalty;
 

@@ -4,7 +4,7 @@ import { isModelUnavailableError, resolveGeminiModels } from "./models";
 import { parseTaskAnalysis } from "./schema";
 import type { AnalyzeTaskInput, AnalyzeTaskResponse, LlmAdapter } from "./adapter";
 
-const PROMPT_VERSION = "v2";
+const PROMPT_VERSION = "v3";
 
 // Gemini 3.1 Flash-Lite fiyatlandirmasi (dokuman bolum 9.3, 30 Temmuz 2026 itibariyla).
 // Kaynak dogrulugu icin bkz. docs/Akilli_Todo_Takvim_Proje_Dokumani.docx [R7].
@@ -18,12 +18,7 @@ function buildResponseSchema() {
       title: { type: "string" },
       quadrant: {
         type: "string",
-        enum: [
-          "urgent_important",
-          "not_urgent_important",
-          "urgent_not_important",
-          "not_urgent_not_important",
-        ],
+        enum: ["urgent_important", "not_urgent_important", "get_rid"],
       },
       estimatedMinutes: { type: "integer" },
       deadline: { type: "string", nullable: true },
@@ -53,27 +48,34 @@ function buildPrompt(input: AnalyzeTaskInput): string {
   const { rawText, preferences } = input;
   return [
     "Sen bir kisisel verimlilik asistanisin. Kullanicinin yazdigi gorev metnini",
-    "asagidaki dort oncelik kategorisinden birine siniflandir ve JSON semasina birebir uyan",
+    "asagidaki uc oncelik kategorisinden birine siniflandir ve JSON semasina birebir uyan",
     "bir cevap uret. Yalnizca verilen metni ve kullanici tercihlerini kullan.",
     "",
     "Kategoriler (quadrant alanina bu kodlardan birini yaz):",
-    '- urgent_important = "Aksiyon": acil VE onemli (hemen yapilmali, buyuk etki)',
-    '- not_urgent_important = "Planla": onemli ama acil degil (takvime planla)',
-    '- urgent_not_important = "Devret": acil gorunen ama dusuk etkili / baskasina devredilebilir',
-    '- not_urgent_not_important = "Zaman Tuzagi": ne acil ne onemli (ertelenebilir rutin)',
+    '- urgent_important = "Aksiyon Al": Bugun ne bitmeli? (acil ve bugun tamamlanmali)',
+    '- not_urgent_important = "Planla": Gelecegim icin bugun takvime ne koymaliyim?',
+    '- get_rid = "Kurtul": Odaklanmayi engelleyen ufak tefek isler; hizlica aradan cikar',
     "",
     "Ornekler:",
     '- "acil bir is" veya "hemen yap" -> urgent_important',
     '- "proje planini hazirla" -> not_urgent_important',
-    '- "mail cevapla" veya "randevu al" -> urgent_not_important',
-    '- "arabayi yikat" veya "sosyal medya" -> not_urgent_not_important',
+    '- "mail cevapla", "arabayi yikat", "masa duzenle" -> get_rid',
     "",
-    "Turkce metinlerde acil/hemen/bugun gibi kelimeler genelde urgent_important veya",
-    "urgent_not_important isaret eder; her seyi not_urgent_not_important yapma.",
+    "Turkce metinlerde acil/hemen/bugun gibi kelimeler genelde urgent_important isaret eder;",
+    "her seyi get_rid yapma.",
+    "",
+    "Onemli kurallar:",
+    "- Metinde acik deadline veya cok kisa sure varsa (or. '10 dk icinde', 'simdi', 'hemen')",
+    "  quadrant mutlaka urgent_important (Aksiyon Al) olmali.",
+    "- Teknik isler (yazilim, test, kod, API, debug) icin tags'a 'teknik' ekle.",
+    "- Gunluk/kisisel isler (alisveris, ekmek, araba yikama, bilet) icin tags'a 'gunluk' ekle.",
+    "- estimatedMinutes belirleyemezsen 60 dakika (1 puan) kullan.",
+    "- estimatedMinutes yalnizca su puan kademelerine denk gelmeli:",
+    "  1 puan=60dk, 2 puan=120dk, 3 puan=420dk, 5 puan=720dk, 8 puan=1080dk.",
     "",
     `Bugunun tarihi (ISO): ${preferences.todayIso}`,
     `Kullanicinin saat dilimi: ${preferences.timezone}`,
-    `Kullanicinin calisma saatleri: ${preferences.workStart}-${preferences.workEnd}`,
+    `Planlama penceresi: ${preferences.workStart}-${preferences.workEnd}`,
     "",
     `Gorev metni: "${rawText}"`,
   ].join("\n");

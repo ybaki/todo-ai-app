@@ -11,7 +11,7 @@ function makeTask(partial: Partial<TaskRow> & Pick<TaskRow, "id" | "quadrant" | 
     status: partial.status,
     quadrant: partial.quadrant,
     estimated_minutes: null,
-    deadline: null,
+    deadline: partial.deadline ?? null,
     splittable: false,
     minimum_chunk_minutes: null,
     energy: null,
@@ -25,14 +25,24 @@ function makeTask(partial: Partial<TaskRow> & Pick<TaskRow, "id" | "quadrant" | 
 }
 
 describe("sortTasksForList", () => {
-  it("orders by priority then done at bottom", () => {
+  it("orders by priority then deadline then done at bottom", () => {
     const sorted = sortTasksForList([
-      makeTask({ id: "1", quadrant: "not_urgent_not_important", status: "inbox" }),
-      makeTask({ id: "2", quadrant: "urgent_important", status: "inbox" }),
+      makeTask({
+        id: "1",
+        quadrant: "urgent_important",
+        status: "inbox",
+        deadline: "2026-08-07T18:00:00Z",
+      }),
+      makeTask({
+        id: "2",
+        quadrant: "urgent_important",
+        status: "inbox",
+        deadline: "2026-08-02T17:00:00Z",
+      }),
       makeTask({ id: "3", quadrant: "not_urgent_important", status: "inbox" }),
       makeTask({ id: "4", quadrant: "urgent_important", status: "done" }),
     ]);
 
-    expect(sorted.map((t) => t.id)).toEqual(["2", "3", "1", "4"]);
+    expect(sorted.map((t) => t.id)).toEqual(["2", "1", "3", "4"]);
   });
 });

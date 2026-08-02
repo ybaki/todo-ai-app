@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { EisenhowerQuadrant } from "@/types/database";
 
 function normalizeDeadline(value: unknown): unknown {
   if (value === "" || value === undefined) return null;
@@ -9,18 +10,23 @@ function normalizeDeadline(value: unknown): unknown {
   return value;
 }
 
+function normalizeQuadrantInput(value: unknown): unknown {
+  if (value === "urgent_not_important" || value === "not_urgent_not_important") {
+    return "get_rid";
+  }
+  return value;
+}
+
 /**
  * LLM'den beklenen structured output semasi.
  * Bkz. docs/Akilli_Todo_Takvim_Proje_Dokumani.docx bolum 9.1.
  */
 export const taskAnalysisSchema = z.object({
   title: z.string().min(1).max(200),
-  quadrant: z.enum([
-    "urgent_important",
-    "not_urgent_important",
-    "urgent_not_important",
-    "not_urgent_not_important",
-  ]),
+  quadrant: z.preprocess(
+    normalizeQuadrantInput,
+    z.enum(["urgent_important", "not_urgent_important", "get_rid"])
+  ),
   estimatedMinutes: z.number().int().min(5).max(8 * 60),
   deadline: z.preprocess(
     normalizeDeadline,

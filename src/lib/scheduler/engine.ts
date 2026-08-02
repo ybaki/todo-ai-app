@@ -1,6 +1,8 @@
 import { addMinutes, differenceInMinutes } from "date-fns";
 import { computeFreeIntervals } from "./freeIntervals";
+import { isImminentDeadline } from "./deadlineUrgency";
 import { scoreCandidate } from "./scoring";
+import { isCandidateSlotAllowed } from "./slotRules";
 import type { GenerateCandidatesInput, ScheduleCandidate, TimeRange } from "./types";
 
 const SLOT_GRID_MINUTES = 15;
@@ -42,12 +44,13 @@ function buildRawCandidates(
     }
 
     if (task.splittable && task.minimumChunkMinutes && availableMinutes >= task.minimumChunkMinutes) {
-      const end = addMinutes(alignedStart, availableMinutes);
+      const chunkMinutes = Math.min(availableMinutes, task.estimatedMinutes);
+      const end = addMinutes(alignedStart, chunkMinutes);
       candidates.push({
         start: alignedStart,
         end,
         intervalDurationMinutes: availableMinutes,
-        isSplitChunk: true,
+        isSplitChunk: chunkMinutes < task.estimatedMinutes,
       });
     }
   }
@@ -67,11 +70,22 @@ export function generateScheduleCandidates(input: GenerateCandidatesInput): Sche
     now: input.now,
   });
 
+  const scheduledTasks = input.scheduledTasks ?? [];
+
   const rawCandidates = buildRawCandidates(freeIntervals, input).filter((candidate) => {
-    // Deadline sonrasina asla oneri uretme.
     if (input.task.deadline && candidate.end > input.task.deadline) return false;
-    return true;
+
+    return isCandidateSlotAllowed({
+      candidate,
+      task: input.task,
+      timezone: input.preferences.timezone,
+      now: input.now,
+      scheduledTasks,
+      preferences: input.preferences,
+    });
   });
+
+  const preferEarliest = isImminentDeadline(input.task.deadline, input.now);
 
   const scored: ScheduleCandidate[] = rawCandidates.map((candidate) => {
     const { score, reason } = scoreCandidate({
@@ -88,5 +102,51 @@ export function generateScheduleCandidates(input: GenerateCandidatesInput): Sche
     return { start: candidate.start, end: candidate.end, score, reason };
   });
 
-  return scored.sort((a, b) => b.score - a.score).slice(0, TOP_N);
+  return scored
+    .sort((a, b) => {
+      if (preferEarliest && a.score !== b.score) {
+        return b.score - a.score;
+      }
+      if (a.score !== b.score) return b.score - a.score;
+      return a.start.getTime() - b.start.getTime();
+    })
+    .slice(0, TOP_N);
+}
+
+/**
+ * Tek bir gorev icin tum parcalari (split dahil) planlar.
+ */
+export function planTaskTimeBlocks(input: GenerateCandidatesInput): TimeRange[] {
+  let remainingMinutes = input.task.estimatedMinutes;
+  const blocks: TimeRange[] = [];
+  const commitments = [...input.commitments];
+
+  for (let attempt = 0; attempt < 14 && remainingMinutes > 0; attempt += 1) {
+    const chunkTask = {
+      ...input.task,
+      estimatedMinutes: remainingMinutes,
+    };
+
+    const candidates = generateScheduleCandidates({
+      ...input,
+      task: chunkTask,
+      commitments,
+    });
+
+    if (candidates.length === 0) break;
+
+    const best = candidates[0];
+    const chunkMinutes = differenceInMinutes(best.end, best.start);
+    blocks.push({ start: best.start, end: best.end });
+    commitments.push({
+      start: best.start,
+      end: best.end,
+      kind: "scheduled",
+      taskId: input.task.id,
+      quadrant: input.task.quadrant,
+    });
+    remainingMinutes -= chunkMinutes;
+  }
+
+  return blocks;
 }

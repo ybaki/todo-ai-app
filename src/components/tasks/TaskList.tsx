@@ -2,6 +2,7 @@
 
 import type { EisenhowerQuadrant, TaskRow } from "@/types/database";
 import { sortTasksForList, taskMatchesSearch } from "@/lib/quadrant";
+import type { TimeSuggestMode } from "./TaskEditMenu";
 import { TaskRowCard } from "./TaskRowCard";
 
 interface TaskListProps {
@@ -9,6 +10,7 @@ interface TaskListProps {
   searchQuery: string;
   onDelete: (taskId: string) => void;
   onQuadrantChange: (taskId: string, quadrant: EisenhowerQuadrant) => void;
+  onReschedule: (taskId: string, mode: TimeSuggestMode, customStartAt?: string) => void | Promise<void>;
   onToggleDone: (taskId: string, done: boolean) => void;
 }
 
@@ -17,6 +19,7 @@ export function TaskList({
   searchQuery,
   onDelete,
   onQuadrantChange,
+  onReschedule,
   onToggleDone,
 }: TaskListProps) {
   const visible = sortTasksForList(tasks).filter((task) => taskMatchesSearch(task, searchQuery));
@@ -37,6 +40,7 @@ export function TaskList({
             task={task}
             onDelete={onDelete}
             onQuadrantChange={onQuadrantChange}
+            onReschedule={onReschedule}
             onToggleDone={onToggleDone}
           />
         </li>

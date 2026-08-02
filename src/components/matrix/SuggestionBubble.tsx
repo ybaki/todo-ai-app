@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ScheduleSuggestionRow, TaskRow } from "@/types/database";
-import { QUADRANT_LABELS } from "@/lib/quadrant";
+import { QUADRANT_LABELS, normalizeQuadrant } from "@/lib/quadrant";
 
 interface SuggestionBubbleProps {
   task: TaskRow;
@@ -67,7 +67,10 @@ export function SuggestionBubble({ task, onClose, onScheduled }: SuggestionBubbl
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-5 text-slate-100 shadow-2xl">
         <p className="text-sm text-slate-400">
-          {task.quadrant ? QUADRANT_LABELS[task.quadrant] : "Sınıflandırılmadı"} olarak değerlendirdim.
+          {normalizeQuadrant(task.quadrant)
+            ? QUADRANT_LABELS[normalizeQuadrant(task.quadrant)!]
+            : "Sınıflandırılmadı"}{" "}
+          olarak değerlendirdim.
         </p>
         <h3 className="mt-1 text-base font-semibold">{task.title ?? task.raw_text}</h3>
         <p className="mt-1 text-sm text-slate-400">

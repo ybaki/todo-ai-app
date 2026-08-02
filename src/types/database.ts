@@ -7,11 +7,14 @@
  * mumkun kilmak icin gecici/elle bakimli bir kaynaktir.
  */
 
-export type EisenhowerQuadrant =
-  | "urgent_important"
-  | "not_urgent_important"
-  | "urgent_not_important"
-  | "not_urgent_not_important";
+import type { IsoWeekday, QuadrantScheduleMode } from "@/lib/scheduling/userPreferences";
+
+export type EisenhowerQuadrant = "urgent_important" | "not_urgent_important" | "get_rid";
+
+/** DB'de kalan eski enum degerleri (0006 oncesi). */
+export type LegacyQuadrant = "urgent_not_important" | "not_urgent_not_important";
+
+export type StoredQuadrant = EisenhowerQuadrant | LegacyQuadrant;
 
 export type TaskStatus =
   | "inbox"
@@ -37,6 +40,15 @@ export interface ProfileRow {
   timezone: string;
   work_start: string;
   work_end: string;
+  work_days: IsoWeekday[];
+  active_start: string;
+  active_end: string;
+  active_days: IsoWeekday[];
+  /** @deprecated work_days kullanin */
+  work_day_mode?: string | null;
+  urgent_schedule_mode: QuadrantScheduleMode;
+  plan_schedule_mode: QuadrantScheduleMode;
+  get_rid_schedule_mode: QuadrantScheduleMode;
   lunch_start: string | null;
   lunch_end: string | null;
   buffer_minutes: number;
@@ -52,7 +64,7 @@ export interface TaskRow {
   raw_text: string;
   title: string | null;
   status: TaskStatus;
-  quadrant: EisenhowerQuadrant | null;
+  quadrant: StoredQuadrant | null;
   deadline: string | null;
   estimated_minutes: number | null;
   minimum_chunk_minutes: number | null;
@@ -167,6 +179,36 @@ export interface ExtensionTokenRow {
   revoked_at: string | null;
 }
 
+export interface ManualCalendarBlockRow {
+  id: string;
+  user_id: string;
+  start_at: string;
+  end_at: string;
+  created_at: string;
+}
+
+export type MeetingRecurrenceFrequency = "day" | "week" | "month" | "year";
+
+export interface MeetingRecurrenceRule {
+  frequency: MeetingRecurrenceFrequency;
+  interval: number;
+  until: string | null;
+  /** Haftalik yinelemede secili gun (0=Pazar). */
+  weekday?: number;
+}
+
+export interface CalendarMeetingRow {
+  id: string;
+  user_id: string;
+  title: string;
+  details: string | null;
+  start_at: string;
+  end_at: string;
+  recurrence_rule: MeetingRecurrenceRule | null;
+  series_id: string | null;
+  created_at: string;
+}
+
 // Supabase js-client'in generic Database sozlesmesini karsilamak icin minimal iskelet.
 // Relationships bilinctli olarak bos birakildi (PostgREST embed sorgulari
 // `select("*, tasks(...)")` gibi runtime'da calisir, yalnizca tip cikarimi
@@ -186,6 +228,8 @@ export interface Database {
       task_feedback: Table<TaskFeedbackRow>;
       audit_logs: Table<AuditLogRow>;
       extension_tokens: Table<ExtensionTokenRow>;
+      manual_calendar_blocks: Table<ManualCalendarBlockRow>;
+      calendar_meetings: Table<CalendarMeetingRow>;
     };
     Views: Record<string, never>;
     Functions: {

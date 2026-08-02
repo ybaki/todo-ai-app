@@ -8,7 +8,14 @@ export interface TimeRange {
 export interface WorkingHoursPreferences {
   timezone: string;
   workStart: string; // "HH:mm"
-  workEnd: string; // "HH:mm"
+  workEnd: string;
+  workDays: import("@/lib/scheduling/userPreferences").IsoWeekday[];
+  activeStart: string;
+  activeEnd: string;
+  activeDays: import("@/lib/scheduling/userPreferences").IsoWeekday[];
+  urgentScheduleMode: import("@/lib/scheduling/userPreferences").QuadrantScheduleMode;
+  planScheduleMode: import("@/lib/scheduling/userPreferences").QuadrantScheduleMode;
+  getRidScheduleMode: import("@/lib/scheduling/userPreferences").QuadrantScheduleMode;
   lunchStart: string | null;
   lunchEnd: string | null;
   bufferMinutes: number;
@@ -18,6 +25,8 @@ export interface WorkingHoursPreferences {
 
 export interface SchedulableTask {
   id: string;
+  rawText: string;
+  tags: string[];
   estimatedMinutes: number;
   minimumChunkMinutes: number | null;
   splittable: boolean;
@@ -29,6 +38,8 @@ export interface SchedulableTask {
 export interface ExistingCommitment extends TimeRange {
   /** Var olan uygulama-ici planlar da "meskul" kabul edilir; cakisma yaratilmaz. */
   kind: "busy" | "scheduled";
+  taskId?: string;
+  quadrant?: EisenhowerQuadrant | null;
 }
 
 export interface ScheduleCandidate extends TimeRange {
@@ -44,4 +55,5 @@ export interface GenerateCandidatesInput {
   now: Date;
   /** Bir onceki gunun toplam planlanan dakikasi (dailyLoadBalance puanlamasi icin). */
   dailyLoadMinutesByDate?: Record<string, number>;
+  scheduledTasks?: Array<{ start: Date; end: Date; quadrant: EisenhowerQuadrant | null }>;
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { addDays, differenceInMinutes } from "date-fns";
 import { resolveRequestUser } from "@/lib/auth/resolveRequestUser";
 import { generateScheduleCandidates } from "@/lib/scheduler/engine";
+import { buildSchedulerPreferences } from "@/lib/scheduler/preferences";
 import type { ExistingCommitment } from "@/lib/scheduler/types";
 
 interface RouteParams {
@@ -48,7 +49,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const now = new Date();
   const searchWindow = { start: now, end: addDays(now, 7) };
 
-  const [{ data: busyRows }, { data: scheduledRows }] = await Promise.all([
+  const [{ data: busyRows }, { data: scheduledRows }, { data: manualRows }, { data: meetingRows }] =
+    await Promise.all([
     auth.supabase
       .from("calendar_busy_cache")
       .select("start_at, end_at")
@@ -57,9 +59,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .lte("start_at", searchWindow.end.toISOString()),
     auth.supabase
       .from("scheduled_blocks")
-      .select("start_at, end_at")
+      .select("start_at, end_at, tasks(quadrant)")
       .eq("user_id", auth.userId)
       .neq("task_id", id)
+      .gte("end_at", searchWindow.start.toISOString())
+      .lte("start_at", searchWindow.end.toISOString()),
+    auth.supabase
+      .from("manual_calendar_blocks")
+      .select("start_at, end_at")
+      .eq("user_id", auth.userId)
+      .gte("end_at", searchWindow.start.toISOString())
+      .lte("start_at", searchWindow.end.toISOString()),
+    auth.supabase
+      .from("calendar_meetings")
+      .select("start_at, end_at")
+      .eq("user_id", auth.userId)
       .gte("end_at", searchWindow.start.toISOString())
       .lte("start_at", searchWindow.end.toISOString()),
   ]);
@@ -75,6 +89,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       end: new Date(row.end_at),
       kind: "scheduled" as const,
     })),
+    ...(manualRows ?? []).map((row) => ({
+      start: new Date(row.start_at),
+      end: new Date(row.end_at),
+      kind: "busy" as const,
+    })),
+    ...(meetingRows ?? []).map((row) => ({
+      start: new Date(row.start_at),
+      end: new Date(row.end_at),
+      kind: "busy" as const,
+    })),
   ];
 
   const dailyLoadMinutesByDate: Record<string, number> = {};
@@ -87,6 +111,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const candidates = generateScheduleCandidates({
     task: {
       id: task.id,
+      rawText: task.raw_text,
+      tags: task.tags ?? [],
       estimatedMinutes: task.estimated_minutes,
       minimumChunkMinutes: task.minimum_chunk_minutes,
       splittable: task.splittable,
@@ -95,19 +121,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       energy: task.energy,
     },
     commitments,
-    preferences: {
-      timezone: profile.timezone,
-      workStart: profile.work_start,
-      workEnd: profile.work_end,
-      lunchStart: profile.lunch_start,
-      lunchEnd: profile.lunch_end,
-      bufferMinutes: profile.buffer_minutes,
-      minFocusBlockMinutes: profile.min_focus_block_minutes,
-      maxDailyFocusMinutes: profile.max_daily_focus_minutes,
-    },
+    preferences: buildSchedulerPreferences(profile),
     searchWindow,
     now,
     dailyLoadMinutesByDate,
+    scheduledTasks: (scheduledRows ?? []).map((row) => {
+      const rawJoin = row.tasks as unknown;
+      const taskJoin = Array.isArray(rawJoin)
+        ? (rawJoin[0] as { quadrant: import("@/types/database").EisenhowerQuadrant | null } | undefined)
+        : (rawJoin as { quadrant: import("@/types/database").EisenhowerQuadrant | null } | null);
+      return {
+        start: new Date(row.start_at),
+        end: new Date(row.end_at),
+        quadrant: taskJoin?.quadrant ?? null,
+      };
+    }),
   });
 
   // Onceki aday setini temizleyip (henuz kabul edilmemisse) yenisini yaz.

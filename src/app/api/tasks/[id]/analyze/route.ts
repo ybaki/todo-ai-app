@@ -1,15 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveRequestUser } from "@/lib/auth/resolveRequestUser";
 import { analyzeTaskWithRetry } from "@/lib/llm/analyzeTask";
-import { classifyQuadrantHeuristic } from "@/lib/llm/heuristicClassifier";
+import { runHeuristicAnalysisFallback } from "@/lib/tasks/analyzeFallback";
+import {
+  resolveEstimatedMinutes,
+  resolveQuadrantAfterAnalysis,
+  resolveSplittable,
+  resolveTaskSize,
+} from "@/lib/tasks/analysisResolve";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// FR-03: quadrant, sure, deadline, etiket, parcalanabilirlik ve confidence
-// donmelidir. Gecersiz yanit -> NEEDS_USER_INPUT fallback (dokuman bolum 9.2).
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const auth = await resolveRequestUser(request);
   if (!auth) {
@@ -40,102 +44,156 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .eq("id", auth.userId)
     .single();
 
-  await auth.supabase.from("tasks").update({ status: "analyzing" }).eq("id", id);
+  const now = new Date();
 
-  const { attempts, final } = await analyzeTaskWithRetry({
-    rawText: task.raw_text,
-    preferences: {
-      timezone: profile?.timezone ?? "Europe/Istanbul",
-      workStart: profile?.work_start ?? "09:00",
-      workEnd: profile?.work_end ?? "18:00",
-      todayIso: new Date().toISOString(),
-    },
-  });
+  try {
+    await auth.supabase.from("tasks").update({ status: "analyzing" }).eq("id", id);
 
-  for (const attempt of attempts) {
-    await auth.supabase.from("task_analyses").insert({
-      task_id: id,
-      user_id: auth.userId,
-      model: attempt.model,
-      prompt_version: attempt.promptVersion,
-      input_tokens: attempt.inputTokens,
-      output_tokens: attempt.outputTokens,
-      output_json: attempt.outcome.ok ? attempt.outcome.data : { rawText: attempt.outcome.rawText },
-      confidence: attempt.outcome.ok ? attempt.outcome.data.confidence : null,
-      cost_usd: attempt.costUsd,
-      latency_ms: attempt.latencyMs,
-      is_valid: attempt.outcome.ok,
-      error_message: attempt.outcome.ok ? null : attempt.outcome.error,
+    const { attempts, final } = await analyzeTaskWithRetry({
+      rawText: task.raw_text,
+      preferences: {
+        timezone: profile?.timezone ?? "Europe/Istanbul",
+        workStart: "09:00",
+        workEnd: "24:00",
+        todayIso: now.toISOString(),
+      },
     });
-  }
 
-  if (!final.outcome.ok) {
-    const heuristicQuadrant = classifyQuadrantHeuristic(task.raw_text);
+    for (const attempt of attempts) {
+      await auth.supabase.from("task_analyses").insert({
+        task_id: id,
+        user_id: auth.userId,
+        model: attempt.model,
+        prompt_version: attempt.promptVersion,
+        input_tokens: attempt.inputTokens,
+        output_tokens: attempt.outputTokens,
+        output_json: attempt.outcome.ok ? attempt.outcome.data : { rawText: attempt.outcome.rawText },
+        confidence: attempt.outcome.ok ? attempt.outcome.data.confidence : null,
+        cost_usd: attempt.costUsd,
+        latency_ms: attempt.latencyMs,
+        is_valid: attempt.outcome.ok,
+        error_message: attempt.outcome.ok ? null : attempt.outcome.error,
+      });
+    }
 
-    if (heuristicQuadrant) {
-      const { data: updatedTask, error: heuristicError } = await auth.supabase
-        .from("tasks")
-        .update({
-          title: task.raw_text.trim().slice(0, 200),
-          quadrant: heuristicQuadrant,
-          status: "suggested",
-          confidence: 0.35,
-        })
-        .eq("id", id)
-        .select("*")
-        .single();
-
-      if (heuristicError) {
-        return NextResponse.json(
-          { error: "update_failed", message: heuristicError.message },
-          { status: 500 }
-        );
-      }
+    if (!final.outcome.ok) {
+      const fallback = await runHeuristicAnalysisFallback({
+        supabase: auth.supabase,
+        userId: auth.userId,
+        task,
+        now,
+      });
 
       return NextResponse.json({
-        task: updatedTask,
+        task: fallback.task,
         analysis: null,
         fallback: "heuristic",
+        schedule: fallback.schedule,
+        taskSize: fallback.taskSize,
         error: final.outcome.error,
       });
     }
 
-    const { data: updatedTask } = await auth.supabase
+    const analysis = final.outcome.data;
+    const estimatedMinutes = resolveEstimatedMinutes(task, analysis);
+    const taskSize = resolveTaskSize(task, analysis);
+    const splittable = resolveSplittable(estimatedMinutes, taskSize, analysis);
+    const quadrant = resolveQuadrantAfterAnalysis(task, analysis.quadrant, now);
+
+    const { data: updatedTask, error } = await auth.supabase
       .from("tasks")
-      .update({ status: "needs_user_input" })
+      .update({
+        title: analysis.title,
+        quadrant,
+        estimated_minutes: estimatedMinutes,
+        deadline: task.deadline ?? analysis.deadline,
+        splittable: splittable.splittable,
+        minimum_chunk_minutes: splittable.minimumChunkMinutes,
+        energy: analysis.energy,
+        tags: analysis.tags,
+        confidence: analysis.confidence,
+        status: "suggested",
+      })
       .eq("id", id)
       .select("*")
       .single();
 
-    return NextResponse.json(
-      { task: updatedTask, analysis: null, error: final.outcome.error },
-      { status: 200 }
-    );
+    let resolvedTask = updatedTask;
+    if (error && quadrant === "get_rid") {
+      const retry = await auth.supabase
+        .from("tasks")
+        .update({
+          title: analysis.title,
+          quadrant: "not_urgent_not_important",
+          estimated_minutes: estimatedMinutes,
+          deadline: task.deadline ?? analysis.deadline,
+          splittable: splittable.splittable,
+          minimum_chunk_minutes: splittable.minimumChunkMinutes,
+          energy: analysis.energy,
+          tags: analysis.tags,
+          confidence: analysis.confidence,
+          status: "suggested",
+        })
+        .eq("id", id)
+        .select("*")
+        .single();
+      resolvedTask = retry.data;
+    }
+
+    if (!resolvedTask) {
+      const fallback = await runHeuristicAnalysisFallback({
+        supabase: auth.supabase,
+        userId: auth.userId,
+        task,
+        now,
+        confidence: 0.4,
+      });
+
+      return NextResponse.json({
+        task: fallback.task,
+        analysis: null,
+        fallback: "update_recovery",
+        schedule: fallback.schedule,
+        taskSize: fallback.taskSize,
+        error: error?.message ?? "Guncelleme basarisiz, heuristic kullanildi",
+      });
+    }
+
+    return NextResponse.json({
+      task: resolvedTask,
+      analysis,
+      schedule: null,
+      taskSize,
+    });
+  } catch (error) {
+    try {
+      const fallback = await runHeuristicAnalysisFallback({
+        supabase: auth.supabase,
+        userId: auth.userId,
+        task,
+        now,
+        confidence: 0.25,
+      });
+
+      return NextResponse.json({
+        task: fallback.task,
+        analysis: null,
+        fallback: "error_recovery",
+        schedule: fallback.schedule,
+        taskSize: fallback.taskSize,
+        error: error instanceof Error ? error.message : "Analiz basarisiz",
+      });
+    } catch (recoveryError) {
+      await auth.supabase.from("tasks").update({ status: "inbox" }).eq("id", id);
+
+      return NextResponse.json(
+        {
+          error: "analyze_failed",
+          message:
+            recoveryError instanceof Error ? recoveryError.message : "Analiz tamamlanamadi",
+        },
+        { status: 500 }
+      );
+    }
   }
-
-  const analysis = final.outcome.data;
-
-  const { data: updatedTask, error } = await auth.supabase
-    .from("tasks")
-    .update({
-      title: analysis.title,
-      quadrant: analysis.quadrant,
-      estimated_minutes: analysis.estimatedMinutes,
-      deadline: analysis.deadline,
-      splittable: analysis.splittable,
-      minimum_chunk_minutes: analysis.minimumChunkMinutes,
-      energy: analysis.energy,
-      tags: analysis.tags,
-      confidence: analysis.confidence,
-      status: "suggested",
-    })
-    .eq("id", id)
-    .select("*")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: "update_failed", message: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ task: updatedTask, analysis });
 }

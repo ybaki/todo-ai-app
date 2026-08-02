@@ -14,6 +14,13 @@ const basePreferences: WorkingHoursPreferences = {
   timezone: TIMEZONE,
   workStart: "09:00",
   workEnd: "18:00",
+  workDays: [1, 2, 3, 4, 5],
+  activeStart: "09:00",
+  activeEnd: "18:00",
+  activeDays: [1, 2, 3, 4, 5],
+  urgentScheduleMode: "work_hours",
+  planScheduleMode: "work_hours",
+  getRidScheduleMode: "work_hours",
   lunchStart: "12:30",
   lunchEnd: "13:30",
   bufferMinutes: 15,
@@ -65,6 +72,8 @@ describe("computeFreeIntervals", () => {
 describe("generateScheduleCandidates", () => {
   const task: SchedulableTask = {
     id: "task-1",
+    rawText: "test gorevi",
+    tags: [],
     estimatedMinutes: 90,
     minimumChunkMinutes: 45,
     splittable: true,
@@ -136,7 +145,7 @@ describe("generateScheduleCandidates", () => {
     });
 
     const lowPriorityCandidates = generateScheduleCandidates({
-      task: { ...task, quadrant: "not_urgent_not_important", splittable: false },
+      task: { ...task, quadrant: "get_rid", splittable: false },
       commitments: [],
       preferences,
       searchWindow: window,

@@ -3,9 +3,7 @@ import { z } from "zod";
 import { resolveRequestUser } from "@/lib/auth/resolveRequestUser";
 
 const updateTaskSchema = z.object({
-  quadrant: z
-    .enum(["urgent_important", "not_urgent_important", "urgent_not_important", "not_urgent_not_important"])
-    .optional(),
+  quadrant: z.enum(["urgent_important", "not_urgent_important", "get_rid"]).optional(),
   status: z
     .enum([
       "inbox",

@@ -16,28 +16,25 @@ export function classifyQuadrantHeuristic(rawText: string): EisenhowerQuadrant |
 
   const urgent =
     /\b(acil|hemen|simdi|bugun|deadline|son gun|asap|hemenlik|ivedi|erteleme)\b/.test(text);
+  const soon =
+    /\b(\d+\s*(dk|dakika|minute|min|saat|hour|h)\b|icinde|sonra|kala|kalmis)\b/.test(text);
   const plan =
     /\b(planla|plan|hazirla|tasarla|contract|testleri|test plan|roadmap|strateji)\b/.test(text);
   const important =
     /\b(onemli|kritik|proje|toplanti|musteri|sunum|rapor|teslim|sinav|duzelt|is\b|gorev|patron|sozlesme)\b/.test(
       text
     );
-  const delegate =
-    /\b(devret|delegasyon|baskasi|yardim|cevapla|email|mail ara|sor|telefon et|randevu al)\b/.test(
-      text
-    );
-  const lowPriority =
-    /\b(yikat|temizle|netflix|oyun|sosyal|alisveris|rutin|bekle|izle|kahve|cop|ekmek|market|alis)\b/.test(
+  const quickTask =
+    /\b(mail|email|cevapla|randevu|telefon|yikat|temizle|netflix|oyun|sosyal|alisveris|rutin|bekle|izle|kahve|cop|ekmek|market|alis|anket|arşiv|duzenle)\b/.test(
       text
     );
 
   if (urgent && important) return "urgent_important";
-  if (urgent && delegate) return "urgent_not_important";
+  if (soon) return "urgent_important";
   if (urgent) return "urgent_important";
-  if (delegate) return "urgent_not_important";
   if (plan && !urgent) return "not_urgent_important";
-  if (important && !lowPriority) return "not_urgent_important";
-  if (lowPriority && !important) return "not_urgent_not_important";
+  if (important && !quickTask) return "not_urgent_important";
+  if (quickTask) return "get_rid";
 
   return null;
 }

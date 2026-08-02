@@ -2,19 +2,24 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { resolveRequestUser } from "@/lib/auth/resolveRequestUser";
 import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  durationPresetToMinutes,
+  durationSchedulingDefaults,
+  type TaskDurationPreset,
+} from "@/lib/taskSize";
+
+const taskDurationSchema = z.enum(["30m", "1h", "2h", "5h", "10h", "full_week"]);
 
 const createTaskSchema = z.object({
   rawText: z.string().min(1).max(2000),
   idempotencyKey: z.string().min(1).max(100).optional(),
   source: z.enum(["web", "chrome_extension"]).default("web"),
   quadrant: z
-    .enum([
-      "urgent_important",
-      "not_urgent_important",
-      "urgent_not_important",
-      "not_urgent_not_important",
-    ])
+    .enum(["urgent_important", "not_urgent_important", "get_rid"])
     .optional(),
+  deadline: z.string().datetime({ offset: true }).nullable().optional(),
+  taskDuration: taskDurationSchema.optional(),
+  taskSize: taskDurationSchema.optional(),
 });
 
 // FR-01 + FR-02: Gorev, AI cagrisindan ONCE Inbox durumunda kaydedilir; AI
@@ -36,7 +41,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { rawText, idempotencyKey, source, quadrant } = parsed.data;
+  const { rawText, idempotencyKey, source, quadrant, deadline } = parsed.data;
+  const durationPreset = (parsed.data.taskDuration ?? parsed.data.taskSize) as
+    | TaskDurationPreset
+    | undefined;
+
+  const sizeDefaults = durationPreset ? durationSchedulingDefaults(durationPreset) : null;
+  const estimatedMinutes = durationPreset ? durationPresetToMinutes(durationPreset) : null;
 
   if (idempotencyKey) {
     const { data: existing } = await auth.supabase
@@ -60,6 +71,10 @@ export async function POST(request: NextRequest) {
       source,
       idempotency_key: idempotencyKey ?? null,
       quadrant: quadrant ?? null,
+      deadline: deadline ?? null,
+      estimated_minutes: estimatedMinutes,
+      splittable: sizeDefaults?.splittable ?? false,
+      minimum_chunk_minutes: sizeDefaults?.minimumChunkMinutes ?? null,
     })
     .select("*")
     .single();

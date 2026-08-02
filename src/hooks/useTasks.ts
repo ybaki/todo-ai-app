@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { TaskDurationPreset } from "@/lib/taskSize";
 import type { TaskRow } from "@/types/database";
 
 interface AnalyzeResponse {
-  task: TaskRow;
+  task?: TaskRow;
   analysis: unknown;
   error?: string;
 }
@@ -42,29 +43,67 @@ export function useTasks() {
     void refresh();
   }, [refresh]);
 
-  const createTask = useCallback(async (rawText: string, quadrant?: TaskRow["quadrant"]) => {
+  const createTask = useCallback(
+    async (
+      rawText: string,
+      options?: {
+        quadrant?: TaskRow["quadrant"];
+        deadline?: string | null;
+        taskDuration?: TaskDurationPreset | null;
+      }
+    ) => {
     const response = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rawText, source: "web", quadrant }),
+      body: JSON.stringify({
+        rawText,
+        source: "web",
+        quadrant: options?.quadrant,
+        deadline: options?.deadline ?? undefined,
+        taskDuration: options?.taskDuration ?? undefined,
+      }),
     });
     if (!response.ok) throw new Error("Gorev kaydedilemedi");
     const data = (await response.json()) as { task: TaskRow };
     setTasks((prev) => [data.task, ...prev]);
     return data.task;
-  }, []);
+  },
+  []);
 
   const analyzeTask = useCallback(async (taskId: string) => {
     setTasks((prev) =>
       prev.map((task) => (task.id === taskId ? { ...task, status: "analyzing" } : task))
     );
-    const response = await fetch(`/api/tasks/${taskId}/analyze`, { method: "POST" });
-    const data = (await response.json()) as AnalyzeResponse;
-    if (data.task) {
-      setTasks((prev) => prev.map((task) => (task.id === taskId ? data.task : task)));
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/analyze`, { method: "POST" });
+      const data = (await response.json()) as AnalyzeResponse;
+
+      if (!response.ok) {
+        await refresh();
+        const message =
+          typeof data.error === "string"
+            ? data.error
+            : (data as { message?: string }).message ?? "Analiz basarisiz";
+        throw new Error(message);
+      }
+
+      if (data.task) {
+        setTasks((prev) => prev.map((task) => (task.id === taskId ? data.task : task)));
+      } else {
+        await refresh();
+      }
+
+      return data;
+    } catch (error) {
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId && task.status === "analyzing" ? { ...task, status: "inbox" } : task
+        )
+      );
+      throw error;
     }
-    return data;
-  }, []);
+  }, [refresh]);
 
   const updateTask = useCallback(async (taskId: string, patch: Record<string, unknown>) => {
     const previous = tasks;
