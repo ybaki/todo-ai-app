@@ -1,16 +1,17 @@
 # Akıllı Todo & Takvim Planlayıcı
 
-Eisenhower matrisi + LLM destekli görev sınıflandırma + deterministik zaman
-önerisi yapan kişisel üretkenlik uygulaması. Giriş: **Google OAuth**
-(yalnızca `@gmail.com`). Microsoft/Outlook entegrasyonu devre dışıdır.
+Eisenhower öncelikleri + LLM destekli görev sınıflandırma + deterministik «Görev ata»
+planlayıcı. Giriş: **Google OAuth** (yalnızca `@gmail.com`).
+
+**Proje anlatımı:** [`docs/Akilli_Todo_Anlatim.docx`](docs/Akilli_Todo_Anlatim.docx)
 
 ## Mimari özeti
 
 ```
-Next.js (Web + Chrome Eklentisi) → Next.js Route Handlers (BFF)
+Next.js (Web + Chrome Eklentisi) → Route Handlers (BFF)
   → Supabase (Postgres + RLS + Auth)
-  → Gemini API (görev analizi)
-  → Deterministik Scheduling Engine (uygulama içi plan)
+  → Gemini API (görev analizi — takvime yazmaz)
+  → Deterministik Scheduler (Görev ata, yeniden planlama)
 ```
 
 ## Gereksinimler
@@ -44,12 +45,12 @@ npm run dev
 
 ## Dokümantasyon
 
+- [`docs/Akilli_Todo_Anlatim.docx`](docs/Akilli_Todo_Anlatim.docx) — Anlatıcı proje dokümanı (son aşama).
 - [`docs/google-auth-setup.md`](docs/google-auth-setup.md) — Gmail giriş (Google OAuth + Supabase).
 - [`docs/azure-cleanup.md`](docs/azure-cleanup.md) — Eski Microsoft/Azure kaynaklarını silme.
 - [`docs/security-checklist.md`](docs/security-checklist.md) — Güvenlik/gizlilik kontrol listesi (FAZ 7).
 - [`docs/deployment-runbook.md`](docs/deployment-runbook.md) — Production'a alma ve rollback prosedürü.
 - [`extension/README.md`](extension/README.md) — Chrome eklentisi kurulumu ve Web Store yayın adımları.
-- [`scripts/entra-poc/`](scripts/entra-poc/) — Entra/OAuth doğrulama için bağımsız PoC script.
 
 ## Bilinen sorunlar / kasıtlı kısıtlamalar
 

@@ -99,6 +99,3 @@ export function TaskDurationPicker({ value, onChange, disabled = false }: TaskDu
     </div>
   );
 }
-
-/** Geriye donuk export. */
-export { TaskDurationPicker as TaskSizePicker };

@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Akıllı Todo & Takvim Planlayıcı",
   description:
-    "Yapay zekâ destekli Eisenhower sınıflandırması, Outlook uygunluk analizi ve otomatik zaman önerisi",
+    "Yapay zekâ destekli görev sınıflandırması, haftalık takvim ve Görev ata ile akıllı zaman planlama",
 };
 
 export default function RootLayout({

@@ -27,7 +27,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// FR-08: Drag & drop ile matris quadrant degisikligi de bu endpoint uzerinden yapilir.
+// Gorev guncelleme (quadrant, status, title, sure, deadline).
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const auth = await resolveRequestUser(request);
   if (!auth) {

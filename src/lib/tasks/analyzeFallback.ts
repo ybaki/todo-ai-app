@@ -75,12 +75,3 @@ export async function runHeuristicAnalysisFallback(params: {
 
   return { task: updatedTask, taskSize, schedule: null };
 }
-
-/** Analiz sonrasi otomatik takvim planlamasi kapali; yalnizca dis istek / Gorev ata kullanir. */
-export async function safeAutoSchedule(_params: {
-  supabase: SupabaseClient;
-  userId: string;
-  task: TaskRow;
-}) {
-  return null;
-}

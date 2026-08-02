@@ -30,12 +30,6 @@ export const QUADRANT_PRIORITY: Record<EisenhowerQuadrant, number> = {
 
 export const DEFAULT_QUADRANT: EisenhowerQuadrant = "get_rid";
 
-export const QUADRANT_ROW_STYLES: Record<EisenhowerQuadrant, string> = {
-  urgent_important: "border-l-4 border-l-red-500 bg-red-500/15",
-  not_urgent_important: "border-l-4 border-l-emerald-500 bg-emerald-500/15",
-  get_rid: "border-l-4 border-l-violet-500 bg-violet-500/15",
-};
-
 export const QUADRANT_CARD_STYLES: Record<EisenhowerQuadrant, string> = {
   urgent_important: "border-red-500/50 bg-red-500/15",
   not_urgent_important: "border-emerald-500/50 bg-emerald-500/15",
@@ -105,6 +99,3 @@ export function taskMatchesSearch(task: TaskRow, query: string): boolean {
   const haystack = `${task.title ?? ""} ${task.raw_text}`.toLowerCase();
   return haystack.includes(normalized);
 }
-
-// Geriye donuk: matris / eski bilesenler icin
-export const QUADRANT_ACCENT = QUADRANT_ROW_STYLES;

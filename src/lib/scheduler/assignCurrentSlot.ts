@@ -4,17 +4,11 @@ import type { TaskRow } from "@/types/database";
 import { resolveTaskDurationMinutes } from "@/lib/tasks/estimateDuration";
 import { normalizeQuadrant } from "@/lib/quadrant";
 import { applyPlannedBlocks } from "./applySchedule";
-import { getEffectiveQuadrant } from "./deadlineUrgency";
+import { getEffectiveQuadrant, quadrantPriorityRank } from "./deadlineUrgency";
 import { computeFreeIntervals } from "./freeIntervals";
 import { loadSchedulingContext, type ScheduledEntry } from "./scheduleContext";
 import { isCandidateSlotAllowed, overlapsRange } from "./slotRules";
 import type { ExistingCommitment, SchedulableTask, TimeRange, WorkingHoursPreferences } from "./types";
-
-const QUADRANT_TIER: Record<string, number> = {
-  urgent_important: 3,
-  not_urgent_important: 4,
-  get_rid: 5,
-};
 
 export interface AssignCurrentSlotResult {
   task: TaskRow;
@@ -59,7 +53,8 @@ export function getAssignSortKey(task: TaskRow, now: Date): number {
 
   const quadrant = normalizeQuadrant(task.quadrant);
   if (!quadrant) return 9_000_000_000;
-  return (QUADRANT_TIER[quadrant] ?? 8) * 1_000_000_000;
+  // Yuksek rank = yuksek oncelik; sort key'de kucuk deger once gelir.
+  return (4 - quadrantPriorityRank(quadrant)) * 1_000_000_000;
 }
 
 export function sortTasksForAssign(tasks: TaskRow[], now: Date): TaskRow[] {
